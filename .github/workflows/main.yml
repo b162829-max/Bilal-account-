@@ -5,8 +5,8 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'DriverAccounts_DesignB_Project-1.zip'
-      - '.github/workflows/build-apk.yml'
+      - '**.zip'
+      - '.github/workflows/main.yml'
 
 jobs:
   build:
@@ -16,14 +16,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check ZIP file
+      - name: Find ZIP file
         run: |
-          test -f DriverAccounts_DesignB_Project-1.zip
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ZIP file not found"
+            exit 1
+          fi
+          echo "ZIP_FILE=$ZIP_FILE" >> $GITHUB_ENV
 
       - name: Extract project ZIP
         run: |
-          mkdir project
-          unzip -q DriverAccounts_DesignB_Project-1.zip -d project
+          mkdir -p project
+          unzip -q "$ZIP_FILE" -d project
+
+      - name: Find Gradle wrapper
+        run: |
+          GRADLE_FILE=$(find project -type f -name gradlew | head -n 1)
+          if [ -z "$GRADLE_FILE" ]; then
+            echo "Gradle wrapper not found"
+            find project -maxdepth 4 -type f
+            exit 1
+          fi
+          echo "GRADLE_DIR=$(dirname "$GRADLE_FILE")" >> $GITHUB_ENV
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -31,23 +46,14 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Find Gradle project
-        run: |
-          GRADLE_FILE=$(find project -name gradlew -type f | head -n 1)
-          if [ -z "$GRADLE_FILE" ]; then
-            echo "Gradle wrapper not found in ZIP"
-            exit 1
-          fi
-          echo "GRADLE_DIR=$(dirname "$GRADLE_FILE")" >> $GITHUB_ENV
-
       - name: Build APK
         run: |
           cd "$GRADLE_DIR"
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: DriverAccounts-APK
+          name: Android-APK
           path: project/**/build/outputs/apk/debug/*.apk
