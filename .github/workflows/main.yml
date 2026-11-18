@@ -28,19 +28,26 @@ jobs:
           mkdir project
           unzip -q "$ZIP_FILE" -d project
 
+      
+
       - name: Locate Gradle Wrapper
         run: |
-          echo "Searching for Gradle files..."
-          find project -type f \( -name gradlew -o -name gradlew.bat \)
-          find project -type d -name gradle
-          
+          echo "Searching for Gradle Wrapper..."
           GRADLE_FILE=$(find project -type f -name gradlew | head -n 1)
-
           if [ -z "$GRADLE_FILE" ]; then
             echo "ERROR: gradlew not found"
-            find project -maxdepth 5 -type f
+            find project -maxdepth 6 -type f
             exit 1
           fi
+          GRADLE_DIR=$(dirname "$GRADLE_FILE")
+          echo "Gradle folder: $GRADLE_DIR"
+          echo "GRADLE_DIR=$GRADLE_DIR" >> $GITHUB_ENV
+
+      - name: Build APK
+        run: |
+          cd "$GRADLE_DIR"
+          chmod +x gradlew
+          ./gradlew assembleRelease --stacktrace
 
           echo "GRADLE_DIR=$(dirname "$GRADLE_FILE")" >> $GITHUB_ENV
 
